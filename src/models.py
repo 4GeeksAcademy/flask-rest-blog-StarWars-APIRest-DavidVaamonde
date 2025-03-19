@@ -7,6 +7,7 @@ db = SQLAlchemy()
 
 class User(db.Model):
     __tablename__ = "user"
+    
     id = Column(Integer, primary_key=True)
     username = Column(String(50), unique=True, nullable=False)
     firstname = Column(String(50))
@@ -27,8 +28,8 @@ class User(db.Model):
         }
 
 
-class Favorites(db.Model):
-    __tablename__ = "favorites"
+class Favourites(db.Model):
+    __tablename__ = "favourites"
     id = Column(Integer, primary_key=True)
 
     # Relación muchos a uno con User, la tabla "uno"
@@ -102,7 +103,7 @@ class Characters(db.Model):
         }
 
 
-class Vehicle(db.Model):
+class Vehicles(db.Model):
     __tablename__ = "vehicles"
     id = Column(Integer, primary_key=True)
     name = Column(String(50))
@@ -130,7 +131,7 @@ class Species(db.Model):
     description = Column(String(250))
 
     # Relación uno a muchos con Favourites, la tabla muchos
-    id_species = relationship("Favourites", back_populates="specie")
+    id_specie = relationship("Favourites", back_populates="specie")
 
     def serialize(self):
         return {

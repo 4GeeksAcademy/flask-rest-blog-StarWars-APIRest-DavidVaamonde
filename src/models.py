@@ -139,5 +139,5 @@ class Species(db.Model):
             "name": self.name,
             "type": self.type,
             "description": self.description,
-            "id_species": self.id_species,
+            "id_species": self.id_specie,
         }

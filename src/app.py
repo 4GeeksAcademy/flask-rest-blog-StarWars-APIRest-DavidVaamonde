@@ -8,7 +8,7 @@ from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from admin import setup_admin
-from models import db, User, Planets, Characters, Vehicles, Species
+from models import db, User, Planets, Characters, Vehicles, Species, Favourites
 #from models import Person
 
 app = Flask(__name__)
@@ -35,6 +35,8 @@ def handle_invalid_usage(error):
 @app.route('/')
 def sitemap():
     return generate_sitemap(app)
+
+
 
 #
 # Endpoints GET
@@ -550,6 +552,277 @@ def delete_specie(specie_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f"Error al eliminar la especie: {str(e)}"}), 500
+    
+#
+# Usuarios y Favoritos
+#
+#
+# Listar todos los usuarios de la base de datos
+#
+@app.route('/users', methods=['GET'])
+def get_all_users():
+
+    users = User.query.all()
+
+    if not users:
+        return jsonify({ "msg": "Users not found"}), 404
+    
+    response_body = [user.serialize() for user in users]
+    
+    return jsonify(response_body), 200
+
+#
+# Genera la ruta users que indica a un usuario
+#
+@app.route('/users/<int:user_id>', methods=['GET'])
+def get_user(user_id):
+
+    user = User.query.get(user_id)
+
+    if user is None:
+        return jsonify({ "msg": "User not found"}), 404
+    
+    response_body = user.serialize()
+    
+    return jsonify(response_body), 200
+
+#
+# Crear un nuevo usuario
+#
+@app.route('/users', methods=['POST'])
+def create_user():
+    # Obetenemos los datos de la request
+    request_data =request.get_json()
+
+    # Verificamos si se han introducido los campos necesarios
+    if not request_data.get("username"):
+        return jsonify({"error": "El nombre de usuario es obligatorio"}), 400
+    
+    if not request_data.get("email"):
+        return jsonify({"error": "El correo electronico es obligatorio"}), 400
+    
+    if not request_data.get("password"):
+        return jsonify({"error": "La contraseña es obligatoria"}), 400
+    
+    # Creamos un nuevo usuario
+    new_user = User(
+        username = request_data.get('username'),
+        firstname = request_data.get('firstname', ''), # Valor por defecto si no se prporciona
+        lastname = request_data.get('lastname', ''), # Valor por defecto si no se prporciona
+        email = request_data.get('email'), 
+        password = request_data.get('password') 
+    )
+
+    # Si sale error al intentar agregar usuario, hacemos try/except
+    try:
+        # Agregar a la sesion y guardar en la base de datos
+        db.session.add(new_user)
+        db.session.commit()
+
+        # Devuelve el personaje creado
+        return jsonify(new_user.serialize()), 201 # Aviso 201 --> Creado con exito
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Error al crear el usuario: {str(e)}"}), 500 # Aviso 500 --> Error en el servidor
+
+
+
+#
+# Borrar un usuario existente
+#
+@app.route('/users/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):    
+    # Buscamos a la especie por ID
+    user = User.query.get(user_id)
+
+    # Verificar si el usuario existe
+    if not user:
+        return jsonify({"error": "Usuario no encontrado"}), 404
+    
+    # Si sale error al eliminar usuario, hacemos try/except
+    try:
+        # Eliminamos el usuario de la base de datos
+        db.session.delete(user)
+        db.session.commit()
+
+        # Devolver mensaje de exito
+        return jsonify({"message": f"Usuario {user_id} eliminada correctamente"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f"Error al eliminar el usuario: {str(e)}"}), 500
+    
+# GET - Conseguir todos los favoritos
+@app.route('/users/<int:user_id>/favourites', methods=['GET'])
+def get_user_favourites(user_id):
+    # Buscamos todos los favoritos del usuario con el id especificado
+    favourites = Favourites.query.filter_by(user_id=user_id).all()
+
+    if not favourites:
+        return jsonify({"msg": f"El usuario {user_id} no tiene ningún favorito", "data": []}), 200
+
+    results = []
+    for fav in favourites:
+        fav_data = {
+            "id": fav.id,
+            "user_id": fav.user_id
+        }
+
+        # Introducimos los datos del planeta si existe
+        if fav.planet_id and fav.planet:
+            fav_data["planet"] = {
+                "id": fav.planet.id,
+                "name": fav.planet.name,
+                "population": fav.planet.population,
+                "description": fav.planet.description
+            }
+
+        # Introducimos los datos del personaje si existe
+        if fav.character_id and fav.character:
+            fav_data["character"] = {
+                "id": fav.character.id,
+                "name": fav.planet.name,
+                "homeworld": fav.planet.homeworld,
+                "description": fav.planet.description
+            }
+
+        # Introducimos los datos del vehiculo si existe
+        if fav.vehicle_id and fav.vehicle:
+            fav_data["vehicle"] = {
+                "id": fav.vehicle.id,
+                "name": fav.vehicle.name,
+                "model": fav.vehicle.model,
+                "description": fav.vehicle.description
+            }
+
+        # Introducimos los datos de la especie si existe
+        if fav.specie_id and fav.specie:
+            fav_data["specie"] = {
+                "id": fav.specie.id,
+                "name": fav.specie.name,
+                "type": fav.specie.type,
+                "description": fav.specie.description
+            }
+
+        results.append(fav_data)
+
+    return jsonify({"results_favs": results}), 200
+
+#
+# POST - Agregar nuevo favorito para un usuario específico
+#
+@app.route('/users/<int:user_id>/favourites', methods=['POST'])
+def add_user_favourite(user_id):
+    request_data = request.get_json()
+    
+    # Verificar que se proporcionó al menos planet_id, character_id, vehicle_id o specie_id
+    if not request_data.get('planet_id') and not request_data.get('character_id') and not request_data.get('vehicle_id') and not request_data.get('specie_id'):
+        return jsonify({"error": "Se requiere planet_id, character_id, vehicle_id o specie_id"}), 400
+    
+    # Crear nuevo favorito con el user_id de la URL
+    new_favourite = Favourites(
+        user_id = user_id,
+        planet_id = request_data.get('planet_id'),
+        character_id = request_data.get('character_id'),
+        vehicle_id = request_data.get('vehicle_id'),
+        specie_id = request_data.get('specie_id')
+    )
+    
+    try:
+        # Verificar si el planeta existe (si se proporciona planet_id)
+        if request_data.get('planet_id'):
+            planet = Planets.query.get(request_data.get('planet_id'))
+            if not planet:
+                return jsonify({"error": f"El planeta con ID {request_data.get('planet_id')} no existe"}), 404
+        
+        # Verificar si el personaje existe (si se proporciona character_id)
+        if request_data.get('character_id'):
+            character = Characters.query.get(request_data.get('character_id'))
+            if not character:
+                return jsonify({"error": f"El personaje con ID {request_data.get('character_id')} no existe"}), 404
+            
+        # Verificar si el vehiculo existe (si se proporciona vehicle_id)
+        if request_data.get('vehicle_id'):
+            vehicle = Vehicles.query.get(request_data.get('vehicle_id'))
+            if not vehicle:
+                return jsonify({"error": f"El vehiculo con ID {request_data.get('vehiculo_id')} no existe"}), 404
+        
+        # Verificar si la especie existe (si se proporciona specie_id)
+        if request_data.get('specie_id'):
+            specie = Species.query.get(request_data.get('specie_id'))
+            if not specie:
+                return jsonify({"error": f"La especie con ID {request_data.get('specie_id')} no existe"}), 404
+        
+        # Agregar a la base de datos
+        db.session.add(new_favourite)
+        db.session.commit()
+        
+        # Crear respuesta detallada
+        response = {
+            "id": new_favourite.id,
+            "user_id": new_favourite.user_id
+        }
+        
+        # Incluir detalles del planeta
+        if new_favourite.planet_id and new_favourite.planet:
+            response["planet"] = {
+                "id": new_favourite.planet.id,
+                "name": new_favourite.planet.name,
+                "population": new_favourite.planet.population,
+                "description": new_favourite.planet.description
+            }
+        
+        # Incluir detalles del personaje
+        if new_favourite.character_id and new_favourite.character:
+            response["character"] = {
+                "id": new_favourite.character.id,
+                "name": new_favourite.character.name,
+                "homeworld": new_favourite.planet.homeworld,
+                "description": new_favourite.planet.description
+            }
+
+        # Incluir detalles del vehiculo
+        if new_favourite.vehicle_id and new_favourite.vehicle:
+            response["vehicle"] = {
+                "id": new_favourite.vehicle.id,
+                "name": new_favourite.vehicle.name,
+                "model": new_favourite.vehicle.model,
+                "description": new_favourite.vehicle.description
+            }
+    
+        # Incluir detalles de la especie
+        if new_favourite.specie_id and new_favourite.specie:
+            response["specie"] = {
+                "id": new_favourite.specie.id,
+                "name": new_favourite.specie.name,
+                "type": new_favourite.specie.type,
+                "description": new_favourite.specie.description
+            }
+        
+        return jsonify(response), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Error al crear favorito: {str(e)}"}), 500
+
+#    
+# DELETE: Eliminar favorito por ID
+#
+@app.route('/users/<int:user_id>/favourites/<int:favourite_id>', methods=['DELETE'])
+def delete_user_favourite(user_id, favourite_id):
+    # Buscar el favorito que pertenezca al usuario especificado
+    favourite = Favourites.query.filter_by(id=favourite_id, user_id=user_id).first()
+    
+    if not favourite:
+        return jsonify({"error": "Favorito no encontrado o no pertenece a este usuario"}), 404
+    
+    try:
+        db.session.delete(favourite)
+        db.session.commit()
+        return jsonify({"success": True, "message": "Favorito eliminado correctamente"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Error al eliminar favorito: {str(e)}"}), 500
 
 # this only runs if `$ python src/app.py` is executed
 if __name__ == '__main__':

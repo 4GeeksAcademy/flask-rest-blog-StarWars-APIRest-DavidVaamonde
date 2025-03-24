@@ -33,23 +33,23 @@ class Favourites(db.Model):
     id = Column(Integer, primary_key=True)
 
     # Relación muchos a uno con User, la tabla "uno"
-    user_id = Column(Integer, ForeignKey('user.id'), unique=True, nullable=False)
+    user_id = Column(Integer, ForeignKey('user.id'))
     user = relationship("User", back_populates="id_user")
 
     # Relación muchos a uno con Planet, la tabla "uno"
-    planet_id = Column(Integer, ForeignKey('planets.id'), unique=True, nullable=False)
+    planet_id = Column(Integer, ForeignKey('planets.id'))
     planet = relationship("Planets", back_populates="id_planet")
 
     # Relación muchos a uno con Character, la tabla "uno"
-    character_id = Column(Integer, ForeignKey('characters.id'), unique=True, nullable=False)
+    character_id = Column(Integer, ForeignKey('characters.id'))
     character = relationship("Characters", back_populates="id_character")
 
     # Relación muchos a uno con Vehicle, la tabla "uno"
-    vehicle_id = Column(Integer, ForeignKey('vehicles.id'), unique=True, nullable=False)
+    vehicle_id = Column(Integer, ForeignKey('vehicles.id'))
     vehicle = relationship("Vehicles", back_populates="id_vehicle")
 
     # Relación muchos a uno con Species, la tabla "uno"
-    specie_id = Column(Integer, ForeignKey('species.id'), unique=True, nullable=False)
+    specie_id = Column(Integer, ForeignKey('species.id'))
     specie = relationship("Species", back_populates="id_specie")
     
     def serialize(self):

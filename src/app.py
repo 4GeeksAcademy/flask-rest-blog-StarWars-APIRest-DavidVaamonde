@@ -53,7 +53,7 @@ def get_all_characters():
         return jsonify({ "msg": "Characters not found"}), 404
     
     response_body = [character.serialize() for character in characters]
-    
+
     return jsonify(response_body), 200
 
 #
@@ -681,9 +681,9 @@ def get_user_favourites(user_id):
         if fav.character_id and fav.character:
             fav_data["character"] = {
                 "id": fav.character.id,
-                "name": fav.planet.name,
-                "homeworld": fav.planet.homeworld,
-                "description": fav.planet.description
+                "name": fav.character.name,
+                "homeworld": fav.character.homeworld,
+                "description": fav.character.description
             }
 
         # Introducimos los datos del vehiculo si existe
@@ -777,8 +777,8 @@ def add_user_favourite(user_id):
             response["character"] = {
                 "id": new_favourite.character.id,
                 "name": new_favourite.character.name,
-                "homeworld": new_favourite.planet.homeworld,
-                "description": new_favourite.planet.description
+                "homeworld": new_favourite.character.homeworld,
+                "description": new_favourite.character.description
             }
 
         # Incluir detalles del vehiculo
